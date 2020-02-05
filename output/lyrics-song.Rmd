@@ -1,0 +1,150 @@
+---
+title: "What did different type of songs try to convey to us?"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Step 0: check and install needed packages. Load the libraries and functions. 
+```{r}
+packages.used=c("rvest", "tibble", 
+                "sentimentr", "gplots", "dplyr",
+                "tm", "syuzhet", "factoextra", 
+                "beeswarm", "scales", "RColorBrewer",
+                "RANN", "topicmodels", "stringr")
+# check packages that need to be installed.
+packages.needed=setdiff(packages.used, 
+                        intersect(installed.packages()[,1], 
+                                  packages.used))
+# install additional packages
+if(length(packages.needed)>0){
+  install.packages(packages.needed, dependencies = TRUE)
+}
+# load packages
+library("rvest")
+library("tibble")
+library("syuzhet")
+library("sentimentr")
+library("gplots")
+library("dplyr")
+library("tm")
+library("syuzhet")
+library("factoextra")
+library("beeswarm")
+library("scales")
+library("RColorBrewer")
+library("RANN")
+library("tm")
+library("topicmodels")
+library("stringr")
+source("lib/mood_counting functions.R")
+```
+
+# Step1 First we use the Text Processing to clean the data we use.Then we get the data that we are convenient to use to analyze the lyrics.
+In this step, we need to open the "Text_Processing.rmd" file to clean the data we need to use. This could make our 
+
+# Step2 Use NRC sentiment lexion to analyze the emotion of each song.
+We want to know the "mood proportion" of each song. So we need to use the NRC sentiment lexion to achive it. For each extracted sentence, we apply sentiment analysis using [NRC sentiment lexion](http://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm). "The NRC Emotion Lexicon is a list of English words and their associations with eight basic emotions (anger, fear, anticipation, trust, surprise, sadness, joy, and disgust) and two sentiments (negative and positive). The annotations were manually done by crowdsourcing."
+```{r}
+load("output/processed_lyrics.RData")
+sentence.list=NULL
+for(i in 1:nrow(dt_lyrics)){
+  sentences=syuzhet::get_sentences(dt_lyrics$stemmedwords[i])
+  if(length(sentences)>0){
+    emotions=matrix(emotion(sentences)$emotion, 
+                    nrow=length(sentences), 
+                    byrow=T)
+    colnames(emotions)=emotion(sentences[1])$emotion_type
+    emotions=data.frame(emotions)
+    emotions=select(emotions,
+                   anticipation,
+                   joy, 
+                   surprise, 
+                   trust, 
+                   anger, 
+                   disgust, 
+                   fear, 
+                   sadness)
+    word.count=f.word_count(sentences)
+    # colnames(emotions)=paste0("emo.", colnames(emotions))
+    # in case the word counts are zeros?
+    # emotions=diag(1/(word.count+0.01))%*%as.matrix(emotions)
+    sentence.list=rbind(sentence.list, 
+                        cbind(dt_lyrics[i,-ncol(dt_lyrics)],
+                              sentences=as.character(sentences), 
+                              word.count,
+                              emotions,
+                              sent.id=1:length(sentences)
+                              )
+    )
+  }
+}
+names(sentence.list)
+
+```
+
+after calculate out the "mood" of each song, we pull out different kinds of the songs to make our analysis more convenient. Here, we ignore the type of "other" for convenience.
+```{r}
+lyrics.folk<-sentence.list[which(sentence.list[4]=="Folk"),]
+lyrics.rb<-sentence.list[which(sentence.list[4]=="R&B"),]
+lyrics.electronic<-sentence.list[which(sentence.list[4]=="Electronic"),]
+lyrics.jazz<-sentence.list[which(sentence.list[4]=="Jazz"),]
+lyrics.indie<-sentence.list[which(sentence.list[4]=="Indie"),]
+lyrics.country<-sentence.list[which(sentence.list[4]=="Country"),]
+lyrics.rock<-sentence.list[which(sentence.list[4]=="Rock"),]
+lyrics.metal<-sentence.list[which(sentence.list[4]=="Metal"),]
+lyrics.pop<-sentence.list[which(sentence.list[4]=="Pop"),]
+lyrics.hiphop<-sentence.list[which(sentence.list[4]=="Hip-Hop"),]
+```
+
+#Step3 In order to analyze the mood show in the lyrics, we define a function to see which part of the eight basic mood count most in each song. Now we apply such function to our data we pull out above.
+```{r}
+lyrics.folk<-mood_count(lyrics.folk)
+lyrics.rb<-mood_count(lyrics.rb)
+lyrics.electronic<-mood_count(lyrics.electronic)
+lyrics.jazz<-mood_count(lyrics.jazz)
+lyrics.indie<-mood_count(lyrics.indie)
+lyrics.country<-mood_count(lyrics.country)
+lyrics.rock<-mood_count(lyrics.rock)
+lyrics.metal<-mood_count(lyrics.metal)
+lyrics.pop<-mood_count(lyrics.pop)
+lyrics.hiphop<-mood_count(lyrics.hiphop)
+```
+
+#Step4 in order to analysis the proportion of different moods in each type of songs, we define a function to count the number of the each "mood type" of particular kind of songs. Then we apply such function to different list.
+```{r}
+folk_plot<-plot_list(lyrics.folk)
+rb_plot<-plot_list(lyrics.rb)
+electronic_plot<-plot_list(lyrics.electronic)
+jazz_plot<-plot_list(lyrics.jazz)
+indie_plot<-plot_list(lyrics.indie)
+country_plot<-plot_list(lyrics.country)
+rock_plot<-plot_list(lyrics.rock)
+metal_plot<-plot_list(lyrics.metal)
+pop_plot<-plot_list(lyrics.pop)
+hiphop_plot<-plot_list(lyrics.hiphop)
+```
+
+#Step5 finally, to make the result more obvious, we define a function to plot the histograms. The graph we get could be shown as below
+```{r}
+g1<-plot_fun("folk",lyrics.folk)
+g2<-plot_fun("R&B",lyrics.rb)
+g3<-plot_fun("Electronic",lyrics.electronic)
+g4<-plot_fun("Jazz",lyrics.jazz)
+g5<-plot_fun("Indie",lyrics.indie)
+g6<-plot_fun("Country",lyrics.country)
+g7<-plot_fun("Rock",lyrics.rock)
+g8<-plot_fun("Metal",lyrics.metal)
+g9<-plot_fun("Pop",lyrics.pop)
+g10<-plot_fun("Hip-Hop",lyrics.hiphop)
+g1
+g2
+g3
+g4
+g5
+g6
+g7
+g8
+g9
+g10
+```
